@@ -80,15 +80,19 @@ public class PlanBot {
         try {
             planQuestionBank = new PlanQuestionBank();
         } catch (DukeException e) {
-            dialogObservableList.add(new PlanDialog("Error in starting the Question Bank!", Agent.BOT));
+            dialogObservableList.add(new PlanDialog(e.getMessage(), Agent.BOT));
         }
-        questionQueue.addAll(planQuestionBank.getQuestions(planAttributes));
+        try {
+            questionQueue.addAll(planQuestionBank.getQuestions(planAttributes));
+        } catch (DukeException e) {
+            dialogObservableList.add(new PlanDialog(e.getMessage(), Agent.BOT));
+        }
         if (questionQueue.isEmpty()) {
             currentQuestion = null;
             try {
                 dialogList.add(new PlanDialog(makeRecommendation(), Agent.BOT));
             } catch (DukeException e) {
-                dialogList.add(new PlanDialog("Error in making recommendations! ", Agent.BOT));
+                dialogList.add(new PlanDialog(e.getMessage(), Agent.BOT));
             }
         } else {
             PlanQuestion firstQuestion = questionQueue.peek();
@@ -112,7 +116,7 @@ public class PlanBot {
     public void processInput(String input) throws DukeException {
         dialogObservableList.add(new PlanDialog(input, Agent.USER));
         if (currentQuestion == null) {
-            PlanDialog emptyQueueDialog = new PlanDialog("I know everything about you already!", Agent.BOT);
+            PlanDialog emptyQueueDialog = new PlanDialog("Based on what you've told me, here's a recommended budget plan!", Agent.BOT);
             dialogObservableList.add(emptyQueueDialog);
             dialogObservableList.add(new PlanDialog(makeRecommendation(), Agent.BOT));
         } else {
@@ -163,33 +167,58 @@ public class PlanBot {
             int tripsPerWeek = Integer.parseInt(tripsPerWeekString);
             BigDecimal tripsPerWeekBD = BigDecimal.valueOf(tripsPerWeek);
             BigDecimal tripCost = Parser.parseMoney(tripCostString);
-            BigDecimal monthlyCost = tripCost.multiply(tripsPerWeekBD).multiply(BigDecimal.valueOf(4));
+            BigDecimal monthlyCost = tripCost.multiply(tripsPerWeekBD).multiply(BigDecimal.valueOf(8));
             switch (planAttributes.get("TRANSPORT_METHOD")) {
             case "MRT":
                 if (monthlyCost.compareTo(BigDecimal.valueOf(48)) > 0) {
-                    recommendation.append("Based on your travelling habits, it is cheaper to buy concession!\n");
-                    recommendation.append("MRT concession costs: $48.00 monthly.\n");
+                    recommendation.append("Based on your travelling habits, it is cheaper to buy concession!\n" +
+                            "MRT concession costs: $48.00 monthly.\n" +
+                            "You should set your transport budget at $48.00 monthly\n");
                 } else {
-                    recommendation.append("Your transport costs $" + monthlyCost + " monthly. \n");
+                    recommendation.append("You should set transport budget at $" + monthlyCost + " monthly. \n");
                 }
                 break;
             case "BUS":
                 if (monthlyCost.compareTo(BigDecimal.valueOf(52)) > 0) {
-                    recommendation.append("Based on your travelling habits, it is cheaper to buy concession!\n");
-                    recommendation.append("MRT concession costs: $52.00 monthly.\n");
+                    recommendation.append("Based on your travelling habits, it is cheaper to buy concession!\n" +
+                            "MRT concession costs: $52.00 monthly.\n" +
+                            "You should set your transport budget at $52.00 monthly\n");
                 } else {
-                    recommendation.append("Your transport costs $" + monthlyCost + " monthly. \n");
+                    recommendation.append("You should set transport budget at $" + monthlyCost + " monthly. \n");
                 }
                 break;
             default:
                 if (monthlyCost.compareTo(BigDecimal.valueOf(85)) > 0) {
-                    recommendation.append("Based on your travelling habits, it is cheaper to buy concession!\n");
-                    recommendation.append("Both Bus and MRT concession cost: $85.00 monthly.\n");
+                    recommendation.append("Based on your travelling habits, it is cheaper to buy concession!\n" +
+                            "Combined concession costs: $85.00 monthly.\n" +
+                            "You should set your transport budget at $85.00 monthly\n");
                 } else {
-                    recommendation.append("Your transport costs $" + monthlyCost + " monthly. \n");
+                    recommendation.append("You should set transport budget at $" + monthlyCost + " monthly. \n");
                 }
                 break;
             }
+
+            int mealsPerDay =  Integer.parseInt(planAttributes.get("MEALS_PER_DAY"));
+            BigDecimal costPerMeal = Parser.parseMoney(planAttributes.get("AVERAGE_MEAL_COST"));
+            BigDecimal monthlyFoodBudget = costPerMeal.multiply(BigDecimal.valueOf(mealsPerDay)).multiply(BigDecimal.valueOf(30));
+            recommendation.append("You should set food budget at $" + monthlyFoodBudget +  " monthly. \n");
+        } else {
+            if(planAttributes.get("DINE_IN_HALL").equals("TRUE")) {
+                BigDecimal costPerMeal = Parser.parseMoney(planAttributes.get("AVERAGE_MEAL_COST"));
+                BigDecimal monthlyFoodBudget = costPerMeal.multiply(BigDecimal.valueOf(1)).multiply(BigDecimal.valueOf(11)); //11 since 3 meals during each weekend * 1 meal per day
+                recommendation.append("You should set food budget at $" + monthlyFoodBudget + " monthly. \n");
+            }else {
+                int mealsPerDay =  Integer.parseInt(planAttributes.get("MEALS_PER_DAY"));
+                BigDecimal costPerMeal = Parser.parseMoney(planAttributes.get("AVERAGE_MEAL_COST"));
+                BigDecimal monthlyFoodBudget = costPerMeal.multiply(BigDecimal.valueOf(mealsPerDay)).multiply(BigDecimal.valueOf(30));
+                recommendation.append("You should set food budget at $" + monthlyFoodBudget + " monthly. \n");
+            }
+        }
+
+
+
+        if(recommendation.toString().isEmpty()){
+            return "I can't make any recommendations for you :(. Something probably went wrong";
         }
         return recommendation.toString();
     }
