@@ -47,7 +47,7 @@ public class DeleteExpenseCommand extends Command {
      * updates content of storage file according to new ExpenseList.
      * Responses the result to user by using ui of Duke.
      *
-     * @param
+     * @param commandParams the parameters given by the user, parsed into a {@code CommandParams} object.
      * @throws DukeException If the index given is out of range, invalid, or does not exist.
      */
     @Override

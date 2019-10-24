@@ -64,7 +64,7 @@ public class PlanBot {
      * @param planAttributes the loaded attributes from Storage
      * @throws DukeException when there is an error loading questions based on the loaded planAttributes
      */
-    public PlanBot(Map<String, String> planAttributes) throws DukeException {
+    public PlanBot(Map<String, String> planAttributes) {
         this.dialogList = new ArrayList<>();
         dialogObservableList = FXCollections.observableList(dialogList);
         this.planAttributes = planAttributes;
@@ -77,12 +77,19 @@ public class PlanBot {
             PlanDialog knownDialog = new PlanDialog(knownAttributes.toString(), Agent.BOT);
             dialogObservableList.add(knownDialog);
         }
-        planQuestionBank = new PlanQuestionBank();
+        try {
+            planQuestionBank = new PlanQuestionBank();
+        } catch (DukeException e) {
+            dialogObservableList.add(new PlanDialog("Error in starting the Question Bank!", Agent.BOT));
+        }
         questionQueue.addAll(planQuestionBank.getQuestions(planAttributes));
         if (questionQueue.isEmpty()) {
             currentQuestion = null;
-            dialogList.add(new PlanDialog(makeRecommendation(), Agent.BOT));
-
+            try {
+                dialogList.add(new PlanDialog(makeRecommendation(), Agent.BOT));
+            } catch (DukeException e) {
+                dialogList.add(new PlanDialog("Error in making recommendations! ", Agent.BOT));
+            }
         } else {
             PlanQuestion firstQuestion = questionQueue.peek();
             currentQuestion = firstQuestion;
@@ -90,7 +97,6 @@ public class PlanBot {
             PlanDialog initial = new PlanDialog(firstQuestion.getQuestion(), Agent.BOT);
             dialogObservableList.add(initial);
         }
-
     }
 
     public ObservableList<PlanDialog> getDialogObservableList() {
@@ -112,7 +118,8 @@ public class PlanBot {
         } else {
             try {
                 PlanQuestion.Reply reply = currentQuestion.getReply(input, planAttributes);
-                questionQueue = planQuestionBank.getQuestions(planAttributes);
+                questionQueue.clear();
+                questionQueue.addAll(planQuestionBank.getQuestions(planAttributes));
                 logger.info("\n\n\nQueue size: " + questionQueue.size());
                 dialogObservableList.add(new PlanDialog(reply.getText(), Agent.BOT));
                 planAttributes = reply.getAttributes();
@@ -130,23 +137,10 @@ public class PlanBot {
                 dialogObservableList.add(new PlanDialog(e.getMessage(), Agent.BOT));
             }
         }
-
-
     }
 
 
-    /**
-     * A container for an individual chat history.
-     */
-    public class PlanDialog {
-        public String text;
-        public Agent agent;
 
-        public PlanDialog(String text, Agent agent) {
-            this.agent = agent;
-            this.text = text;
-        }
-    }
 
     public Map<String, String> getPlanAttributes() {
         return planAttributes;
@@ -163,7 +157,6 @@ public class PlanBot {
         if (planAttributes.get("NUS_STUDENT").equals("FALSE")) {
             return "Since you're not a NUS student, I can't make any recommendations for you :(";
         }
-
         if (planAttributes.get("CAMPUS_LIFE").equals("FALSE")) {
             String tripCostString = planAttributes.get("TRIP_COST");
             String tripsPerWeekString = planAttributes.get("TRAVEL_DAYS");
@@ -180,7 +173,6 @@ public class PlanBot {
                     recommendation.append("Your transport costs $" + monthlyCost + " monthly. \n");
                 }
                 break;
-
             case "BUS":
                 if (monthlyCost.compareTo(BigDecimal.valueOf(52)) > 0) {
                     recommendation.append("Based on your travelling habits, it is cheaper to buy concession!\n");
@@ -189,8 +181,6 @@ public class PlanBot {
                     recommendation.append("Your transport costs $" + monthlyCost + " monthly. \n");
                 }
                 break;
-
-
             default:
                 if (monthlyCost.compareTo(BigDecimal.valueOf(85)) > 0) {
                     recommendation.append("Based on your travelling habits, it is cheaper to buy concession!\n");
@@ -199,13 +189,22 @@ public class PlanBot {
                     recommendation.append("Your transport costs $" + monthlyCost + " monthly. \n");
                 }
                 break;
-
             }
         }
-
         return recommendation.toString();
+    }
 
+    /**
+     * A container for an individual chat history.
+     */
+    public class PlanDialog {
+        public String text;
+        public Agent agent;
 
+        public PlanDialog(String text, Agent agent) {
+            this.agent = agent;
+            this.text = text;
+        }
     }
 
 
